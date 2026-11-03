@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f4f1e9">
+  <title>我的主页 · Cadence 英语精听</title>
+  <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/styles.css?v=@maven.build.timestamp@">
+  <link rel="stylesheet" href="/css/user.css?v=@maven.build.timestamp@">
+  <script src="/js/listening.js?v=@maven.build.timestamp@" defer></script>
+  <script src="/js/user.js?v=@maven.build.timestamp@" defer></script>
+  <script src="/js/account.js?v=@maven.build.timestamp@" defer></script>
+</head>
+<body class="account-page">
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="/" aria-label="Cadence 首页">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 44 44"><rect width="44" height="44" rx="13" fill="currentColor"/><path d="M12 21v2M18 16v12M24 12v20M30 18v8M36 20v4" fill="none" stroke="#f8f2e7" stroke-width="2.6" stroke-linecap="round"/><circle cx="24" cy="34" r="2" fill="#e1663f"/></svg></span>
+        <span class="brand-word">Cadence</span><span class="brand-cn">英语精听</span>
+      </a>
+      <div class="header-actions user-account-header">
+        <a class="user-header-button" href="/">返回素材库</a>
+        <button class="user-header-button" type="button" data-auth-button>登录 / 注册</button>
+        <span class="user-account-chip" data-user-home hidden><span data-user-name></span>的主页</span>
+        <button class="user-header-button" type="button" data-user-logout hidden>退出登录</button>
+      </div>
+    </div>
+  </header>
+  <p class="user-sync-message shell" data-user-message role="status" hidden></p>
+  <section class="shell user-guest-panel" id="guestPanel" hidden>
+    <p class="user-eyebrow">YOUR LISTENING JOURNEY</p>
+    <h1>登录后，让进步有迹可循。</h1>
+    <p>注册即可跨设备同步观看 / 收听记录与进度；累计有效收听满 10 期后，发现你的兴趣偏好与英语学习习惯。</p>
+    <button class="user-primary" type="button" data-auth-button="register">注册，开始积累</button>
+    <button class="user-secondary" type="button" data-auth-button="login">已有账号，登录</button>
+  </section>
+  <p class="shell user-profile-status" id="profileStatus" role="status">正在读取收听记录…</p>
+  <div class="shell user-layout" id="profileLayout" hidden>
+    <aside class="user-sidebar">
+      <div class="user-avatar" id="userAvatar" aria-hidden="true"></div>
+      <p class="user-sidebar-name" data-user-name></p>
+      <p class="user-small">从一次认真聆听开始</p>
+      <nav aria-label="用户主页导航"><a class="is-active" href="#overview">学习概览</a><a href="#records">收听记录</a><a href="#favorites">我的收藏</a></nav>
+      <p class="user-sidebar-note">登录后，收听记录与进度可在不同设备间同步。<br><br>每一点积累，都值得被看见。</p>
+    </aside>
+    <main class="user-main" id="overview">
+      <div class="user-page-heading"><div><p class="user-eyebrow">YOUR LISTENING JOURNEY</p><h1>把每次聆听，变成进步。</h1><p class="user-intro">这里记录着你的兴趣、习惯，以及坚持的每一分钟。</p></div><button class="user-refresh" id="refreshProfile" type="button">刷新记录</button></div>
+      <p class="user-welcome" id="profileWelcome" hidden></p>
+      <section class="user-stats" aria-label="累计收听统计">
+        <div class="user-stat"><p>累计收听</p><strong id="totalListening">0秒</strong><small>只记录实际播放时间</small></div>
+        <div class="user-stat"><p>有效收听</p><strong><span id="effectiveEpisodes">0</span><span class="user-stat-unit">期</span></strong><small>不同课程，累计听满 80%</small></div>
+        <div class="user-stat"><p>探索种类</p><strong><span id="categoryCount">0</span><span class="user-stat-unit">类</span></strong><small>有实际收听的内容类别</small></div>
+        <div class="user-stat"><p>日均收听</p><strong id="dailyListening">0秒</strong><small id="averageBasis">从首次实际收听开始统计</small></div>
+      </section>
+      <section class="user-panel" aria-labelledby="analysisHeading">
+        <div class="user-panel-heading"><div><p class="user-overline">LISTEN. UNDERSTAND. GROW.</p><h2 id="analysisHeading">发现你的英语学习画像</h2></div><span class="user-pill" id="analysisEligibility"></span></div>
+        <p class="user-analysis-description">从你听过的内容和收听节奏出发，了解自己的兴趣偏好、日常习惯，找到更适合你的英语学习方式。</p>
+        <div class="user-analysis-actions"><button class="user-primary" type="button" id="generateAnalysis">生成我的学习画像</button><span class="user-small" id="analysisProgress"></span></div>
+        <p class="user-privacy">分析时仅向独立配置的 AI 服务发送必要的收听统计，不含用户名和密码；生成内容仅作学习参考。</p>
+        <p class="user-notice" id="analysisNotice" role="status" hidden></p>
+        <section class="user-analysis-result" id="analysisResult" aria-label="你的学习画像" hidden>
+          <div class="user-result-heading"><h3 id="analysisTitle"></h3><p class="user-small" id="analysisMeta"></p></div>
+          <div class="user-insights"><div><h3>兴趣偏好</h3><p id="analysisInterests"></p></div><div><h3>收听习惯</h3><p id="analysisHabits"></p></div><div><h3>学习投入</h3><p id="analysisInvestment"></p></div><div><h3>下一步建议</h3><ul id="analysisSuggestions"></ul></div></div>
+          <p class="user-encouragement" id="analysisEncouragement"></p>
+        </section>
+      </section>
+      <div class="user-two-columns">
+        <section class="user-panel" aria-labelledby="categoriesHeading"><div class="user-panel-heading"><h2 id="categoriesHeading">你听过的内容</h2><span class="user-small">按实际时长排序</span></div><div class="user-table-wrap"><table class="user-table"><thead><tr><th scope="col">类别</th><th scope="col" class="user-number">收听时长</th><th scope="col" class="user-number">时长占比</th></tr></thead><tbody id="userCategoryRows"></tbody></table></div><p class="user-footnote">同一课程重复收听的时间也会累计。</p></section>
+        <section class="user-panel" aria-labelledby="rhythmHeading"><h2 id="rhythmHeading">你的收听节奏</h2><table class="user-table"><tbody><tr><th scope="row">开始收听</th><td class="user-number" id="firstListeningDate"></td></tr><tr><th scope="row">有收听的天数</th><td class="user-number" id="activeListeningDays"></td></tr><tr><th scope="row">常用收听时段</th><td class="user-number" id="preferredPeriod"></td></tr><tr><th scope="row">最近一次收听</th><td class="user-number" id="lastListeningDate"></td></tr></tbody></table><p class="user-footnote" id="timeZoneNote"></p></section>
+      </div>
+      <section class="user-panel user-records" id="records" aria-labelledby="recordsHeading"><div class="user-panel-heading"><h2 id="recordsHeading">收听记录</h2><span class="user-small" id="userRecordCount"></span></div><div class="user-table-wrap"><table class="user-table user-record-table"><thead><tr><th scope="col">课程</th><th scope="col">最近收听</th><th scope="col" class="user-number">累计收听</th><th scope="col" class="user-number">操作</th></tr></thead><tbody id="userRecordRows"></tbody></table></div><button class="user-secondary user-more" type="button" id="moreUserRecords" hidden>查看更多记录</button><p class="user-footnote">暂停、缓冲和拖动进度不计入时长；同一期实际累计听满课程时长的 80% 后计为有效一期，重复收听不增加期数。已同步的旧本机历史只保留课程与进度，不补算历史时长。</p></section>
+      <section class="user-panel user-favorites" id="favorites" aria-labelledby="favoritesHeading"><div class="user-panel-heading"><h2 id="favoritesHeading">我的收藏</h2><span class="user-small" id="userFavoriteCount"></span></div><p class="user-notice" id="favoriteNotice" role="status" hidden></p><div class="user-table-wrap"><table class="user-table user-record-table user-favorite-table"><thead><tr><th scope="col">课程</th><th scope="col">收藏时间</th><th scope="col" class="user-number">操作</th></tr></thead><tbody id="userFavoriteRows"></tbody></table></div><p class="user-footnote">收藏按账号保存，最新收藏排在前面；课程下架后仍会保留收藏记录。</p></section>
+    </main>
+  </div>
+  <noscript><div class="noscript">请开启 JavaScript 以查看用户主页。</div></noscript>
+</body>
+</html>

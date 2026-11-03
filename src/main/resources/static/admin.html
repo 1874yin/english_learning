@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f4f1e9">
+  <meta name="robots" content="noindex,nofollow">
+  <title>素材后台 · Cadence</title>
+  <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/styles.css?v=@maven.build.timestamp@">
+  <link rel="stylesheet" href="/css/admin.css?v=@maven.build.timestamp@">
+  <script src="/js/translation-status.js?v=@maven.build.timestamp@" defer></script>
+  <script src="/js/admin.js?v=@maven.build.timestamp@" defer></script>
+</head>
+<body class="admin-body">
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="/" aria-label="返回 Cadence 学习页">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 44 44">
+            <rect width="44" height="44" rx="13" fill="currentColor"/>
+            <path d="M12 21v2M18 16v12M24 12v20M30 18v8M36 20v4" fill="none" stroke="#f8f2e7" stroke-width="2.6" stroke-linecap="round"/>
+            <circle cx="24" cy="34" r="2" fill="#e1663f"/>
+          </svg>
+        </span>
+        <span class="brand-word">Cadence</span>
+        <span class="brand-cn">素材后台</span>
+      </a>
+
+      <div class="header-actions">
+        <a class="header-icon-btn" href="/">返回学习页</a>
+        <button class="header-icon-btn" type="button" id="logoutBtn" hidden>退出登录</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="shell">
+      <section class="admin-card login-card" id="loginPanel" aria-labelledby="loginTitle">
+        <span class="section-kicker">ADMIN</span>
+        <h1 id="loginTitle">素材后台</h1>
+<!--        <p class="admin-lead">登录后可以添加或修改单集素材。上传 MP3 与纯文本台词后，后端会自动完成分句和时间轴估算。</p>-->
+
+        <form class="login-form" id="loginForm">
+          <label for="adminPassword">管理密码</label>
+          <div class="login-row">
+            <input type="password" id="adminPassword" name="password" autocomplete="current-password" required>
+            <button class="btn btn--primary" type="submit" id="loginBtn">登录</button>
+          </div>
+          <p class="form-message" id="loginMessage" role="alert"></p>
+        </form>
+
+<!--        <p class="login-note">密码通过 <code>ADMIN_PASSWORD</code> 环境变量配置；未配置时默认是 <code>cadence-admin</code>。</p>-->
+      </section>
+
+      <section id="adminPanel" hidden>
+        <div class="admin-hero">
+          <div>
+            <span class="section-kicker">LIBRARY</span>
+            <h1>素材管理</h1>
+            <p>一次添加或修改一节课。音频保存在服务器本地，台词会按标点自动分句，并按 MP3 实际时长估算逐句起止时间。</p>
+          </div>
+          <span class="admin-count" id="libraryCount">0 节素材</span>
+        </div>
+
+        <section class="admin-card translation-card" id="translationCard" aria-labelledby="translationHeading">
+          <div class="translation-head">
+            <div class="translation-title">
+              <span class="section-kicker">TRANSLATION</span>
+              <h2 id="translationHeading">翻译状态</h2>
+              <p class="translation-meta" id="translationMeta">正在读取翻译状态…</p>
+            </div>
+            <div class="translation-side">
+              <div class="translation-badges" id="translationBadges"></div>
+              <button class="translation-refresh" type="button" id="translationRefreshBtn"
+                aria-label="刷新翻译状态" title="补翻未完成时每 15 秒自动刷新">
+                <span class="translation-refresh-icon" aria-hidden="true">↻</span>
+                <span>刷新</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="translation-progress">
+            <div class="translation-progress-head">
+              <span class="translation-progress-label">已翻译</span>
+              <strong class="translation-count" id="translationLineCount">—</strong>
+              <span class="translation-percent" id="translationLinePercent">—</span>
+            </div>
+            <div class="translation-bar" id="translationLineBar" role="progressbar"
+              aria-label="台词翻译进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <span class="translation-bar-fill" id="translationLineFill"></span>
+            </div>
+            <p class="translation-summary" id="translationSummary"></p>
+          </div>
+          <p class="translation-error" id="translationError" role="status" hidden></p>
+        </section>
+
+        <div class="admin-layout">
+          <aside class="admin-card library-card" aria-labelledby="libraryHeading">
+            <div class="panel-head">
+              <div>
+                <h2 id="libraryHeading">已有素材</h2>
+                <p>点击“编辑”载入到右侧表单。</p>
+              </div>
+            </div>
+            <div class="admin-lesson-list" id="lessonList">
+              <p class="admin-empty">正在加载…</p>
+            </div>
+          </aside>
+
+          <section class="admin-card editor-card" aria-labelledby="formTitle">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">LESSON</span>
+                <h2 id="formTitle">添加素材</h2>
+              </div>
+              <button class="text-button admin-reset" type="button" id="resetFormBtn" hidden>新建素材</button>
+            </div>
+
+            <form id="lessonForm" enctype="multipart/form-data">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="title">英文标题 *</label>
+                  <input type="text" id="title" name="title" maxlength="200" required autocomplete="off">
+                </div>
+                <div class="field">
+                  <label for="titleZh">中文标题</label>
+                  <input type="text" id="titleZh" name="titleZh" maxlength="200" autocomplete="off">
+                </div>
+                <div class="field">
+                  <label for="categorySelect">分类 <span class="field-optional">可自定义</span></label>
+                  <select id="categorySelect" aria-label="从已有分类中选择">
+                    <option value="">选择已有分类…</option>
+                  </select>
+                  <div class="category-input-row">
+                    <input type="text" id="category" name="category" maxlength="60" value="Listening" placeholder="或输入新分类" autocomplete="off" aria-label="分类名称">
+                    <button class="category-add-btn" type="button" id="addCategoryBtn">添加</button>
+                  </div>
+                  <div class="category-chips" id="categoryChips" aria-label="已有分类"></div>
+                  <p class="field-hint" id="categoryHint">从上方选择已有分类，或输入新分类后点“添加”；保存素材时使用的分类也会自动出现在这里。</p>
+                </div>
+                <div class="field">
+                  <label for="level">难度</label>
+                  <select id="level" name="level">
+                    <option value="Beginner">Beginner · 初级</option>
+                    <option value="Intermediate" selected>Intermediate · 中级</option>
+                    <option value="Advanced">Advanced · 高级</option>
+                  </select>
+                </div>
+                <div class="field field--wide">
+                  <label for="summary">英文简介</label>
+                  <input type="text" id="summary" name="summary" maxlength="1000" autocomplete="off">
+                </div>
+                <div class="field field--wide">
+                  <label for="summaryZh">中文简介</label>
+                  <input type="text" id="summaryZh" name="summaryZh" maxlength="1000" autocomplete="off">
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="audioFile">MP3 音频 <span id="audioRequiredMark">*</span></label>
+                <input type="file" id="audioFile" name="audio" accept=".mp3,audio/mpeg">
+                <p class="field-hint" id="audioHint">最大 50 MB。上传后会读取实际音频时长。</p>
+              </div>
+
+              <div class="field">
+                <label for="coverFile">封面图片 <span class="field-optional">可选</span></label>
+                <div class="cover-uploader">
+                  <img class="cover-preview" id="coverPreview" src="/images/cover-default.svg" alt="封面预览">
+                  <div class="cover-uploader-body">
+                    <input type="file" id="coverFile" name="cover" accept=".jpg,.jpeg,.png,.gif,.avif,image/jpeg,image/png,image/gif,image/avif">
+                    <p class="field-hint" id="coverHint">JPG、PNG、GIF 或 AVIF，最大 5 MB，建议使用横图。不选择时使用默认封面。</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="transcriptText">台词纯文本 *</label>
+                <textarea id="transcriptText" name="transcriptText" rows="14" maxlength="100000" required
+                  placeholder="Paste the lesson transcript here. Paragraphs and straight quotes are both fine."></textarea>
+                <p class="field-hint">支持整段或分段落。后端按标点自动分句，再根据音频时长与句子长度估算时间轴；这不是单词级强制对齐。</p>
+                <p class="field-hint">保存后会自动翻译成中文，显示在每句英文下方；翻译服务暂时不可用时，下次启动会重试。</p>
+              </div>
+
+              <div class="field words-editor">
+                <label for="wordsText">Words in this Story</label>
+                <textarea id="wordsText" name="wordsText" rows="6" maxlength="5000"
+                  placeholder="quiet /ˈkwaɪət/ adj. 安静的&#10;take a deep breath 深吸一口气"></textarea>
+                <p class="field-hint">可选，纯文本。一行写一个词条，换行会原样显示在学习页字幕下方；留空则隐藏该栏目。</p>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn btn--primary" type="submit" id="submitBtn">添加素材</button>
+                <span class="form-status" id="submitStatus" role="status" aria-live="polite"></span>
+              </div>
+
+              <div class="success-panel" id="successPanel" hidden>
+                <strong id="successTitle">素材已保存</strong>
+                <p id="successText"></p>
+                <a id="successLink" href="/">前往学习页查看</a>
+              </div>
+            </form>
+          </section>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <noscript>
+    <div class="noscript">请开启 JavaScript 以使用素材后台。</div>
+  </noscript>
+</body>
+</html>

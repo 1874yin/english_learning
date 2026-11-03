@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 640" role="img" aria-labelledby="title desc">
+  <title id="title">Cadence audio lesson cover</title>
+  <desc id="desc">An abstract listening-room illustration with a warm sun and sound waves.</desc>
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6efe1"/>
+      <stop offset="1" stop-color="#e8deca"/>
+    </linearGradient>
+    <linearGradient id="forest" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d4a3f"/>
+      <stop offset="1" stop-color="#102f28"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#efb072"/>
+      <stop offset="1" stop-color="#df6139"/>
+    </radialGradient>
+  </defs>
+  <rect width="760" height="640" fill="url(#paper)"/>
+  <circle cx="594" cy="142" r="72" fill="url(#sun)" opacity=".88"/>
+  <rect x="58" y="62" width="644" height="516" rx="34" fill="url(#forest)"/>
+  <circle cx="380" cy="300" r="148" fill="none" stroke="#f6efe1" stroke-opacity=".16" stroke-width="1.5"/>
+  <circle cx="380" cy="300" r="110" fill="none" stroke="#f6efe1" stroke-opacity=".24" stroke-width="1.5"/>
+  <path d="M176 320h56l34-83 52 180 54-235 48 180 30-70h40" fill="none" stroke="#e99a72" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M180 408h400" stroke="#f6efe1" stroke-opacity=".2" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="82" y="520" fill="#f6efe1" font-family="Georgia, 'Times New Roman', serif" font-size="27" letter-spacing="4">CADENCE AUDIO</text>
+  <text x="82" y="550" fill="#e8deca" fill-opacity=".66" font-family="Consolas, monospace" font-size="13" letter-spacing="3">LISTEN · REPEAT · SPEAK</text>
+  <g fill="#df6139">
+    <circle cx="650" cy="512" r="5"/>
+    <circle cx="668" cy="512" r="5" opacity=".5"/>
+    <circle cx="686" cy="512" r="5" opacity=".25"/>
+  </g>
+</svg>
