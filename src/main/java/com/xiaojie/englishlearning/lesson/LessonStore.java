@@ -24,7 +24,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
@@ -354,7 +354,7 @@ public class LessonStore {
     }
 
     /**
-     * Java 8's ImageIO has no AVIF reader. The browser handles decoding, so the
+     * The JDK's ImageIO has no AVIF reader. The browser handles decoding, so the
      * server only validates the ISO-BMFF file type and reads the ispe dimensions.
      */
     private CoverSize readAvifSize(Path file) {

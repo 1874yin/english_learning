@@ -8,7 +8,7 @@
 
 环境要求：
 
-- Java 8 或更高版本
+- Java 21
 - Maven 3.6+
 
 开发模式启动：
@@ -69,7 +69,7 @@ data/
 - 数据在 jar 外部，重新打包、替换 jar 不会丢失。备份时复制整个 `data/` 目录即可。
 - 上传音频通过 `/media/{filename}` 提供，带长缓存和 Range 支持；封面通过 `/covers/{filename}` 提供。替换文件时会生成新文件名，避免浏览器读到旧缓存。
 - 样式表和脚本的 URL 带构建时间戳（`?v=...`，由 Maven 打包时写入），静态资源响应统一带 `Cache-Control: no-cache`。重新打包部署后，浏览器会在下次刷新时重新校验并拿到新版前端文件，不会继续用旧样式表渲染新页面。若前面有 Nginx 等反向代理，请确保它不把 `/` 和 `/index.html` 的响应缓存超过一个版本周期。
-- 封面支持 JPG、PNG、GIF、AVIF。Java 8 自带的 ImageIO 不能解码 AVIF，因此 AVIF 只校验 ISO-BMFF 文件头与尺寸（`ispe`），实际解码交给浏览器，并由独立的 `/covers` 控制器返回 `image/avif`。样式表等旧环境若不支持 AVIF，会显示默认占位效果，建议对兼容性要求高时使用 JPG/PNG。
+- 封面支持 JPG、PNG、GIF、AVIF。JDK 自带的 ImageIO 不能解码 AVIF，因此 AVIF 只校验 ISO-BMFF 文件头与尺寸（`ispe`），实际解码交给浏览器，并由独立的 `/covers` 控制器返回 `image/avif`。样式表等旧环境若不支持 AVIF，会显示默认占位效果，建议对兼容性要求高时使用 JPG/PNG。
 - `data/` 已加入 `.gitignore`。
 
 ### 配置
