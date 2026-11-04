@@ -3,6 +3,7 @@ package com.xiaojie.englishlearning.category;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaojie.englishlearning.admin.AdminValidationException;
+import com.xiaojie.englishlearning.persistence.CategoryPersistence;
 import com.xiaojie.englishlearning.storage.StoragePaths;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,15 +33,25 @@ public class CategoryStore {
 
     private final StoragePaths paths;
     private final ObjectMapper objectMapper;
+    private final CategoryPersistence persistence;
     private final List<String> categories = new ArrayList<String>();
 
     public CategoryStore(StoragePaths paths, ObjectMapper objectMapper) {
+        this(paths, objectMapper, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CategoryStore(StoragePaths paths, ObjectMapper objectMapper, CategoryPersistence persistence) {
         this.paths = paths;
         this.objectMapper = objectMapper;
+        this.persistence = persistence;
     }
 
     @PostConstruct
     public synchronized void load() {
+        if (persistence != null) {
+            return;
+        }
         categories.clear();
         Path file = paths.getCategoriesFile();
         if (!Files.exists(file)) {
@@ -63,6 +74,10 @@ public class CategoryStore {
     }
 
     public synchronized List<String> findAll() {
+        if (persistence != null) {
+            List<String> stored = persistence.findAll();
+            return stored.isEmpty() ? new ArrayList<>(DEFAULT_CATEGORIES) : stored;
+        }
         return new ArrayList<String>(categories);
     }
 
@@ -72,8 +87,23 @@ public class CategoryStore {
      * @return the name as it is stored, which keeps the existing spelling on a
      *         case-insensitive duplicate.
      */
+    public void checkWritable() {
+        if (persistence != null) persistence.checkWritable();
+    }
+
     public synchronized String add(String rawName) throws IOException {
+        checkWritable();
         String name = requireName(rawName);
+        if (persistence != null) {
+            String existing = findByIgnoreCase(findAll(), name);
+            if (existing != null) {
+                return existing;
+            }
+            if (findAll().size() >= MAX_CATEGORIES) {
+                throw new AdminValidationException("最多保存 " + MAX_CATEGORIES + " 个分类。");
+            }
+            return persistence.add(name, DEFAULT_CATEGORIES);
+        }
         String existing = findByIgnoreCase(name);
         if (existing != null) {
             return existing;
@@ -96,9 +126,13 @@ public class CategoryStore {
      * category keep showing it through the merged public list.
      */
     public synchronized boolean remove(String rawName) throws IOException {
+        checkWritable();
         String name = normalize(rawName);
         if (name == null) {
             return false;
+        }
+        if (persistence != null) {
+            return persistence.remove(name, DEFAULT_CATEGORIES);
         }
         for (int i = 0; i < categories.size(); i += 1) {
             if (categories.get(i).equalsIgnoreCase(name)) {
@@ -116,7 +150,11 @@ public class CategoryStore {
     }
 
     private String findByIgnoreCase(String name) {
-        for (String category : categories) {
+        return findByIgnoreCase(categories, name);
+    }
+
+    private String findByIgnoreCase(List<String> values, String name) {
+        for (String category : values) {
             if (category.equalsIgnoreCase(name)) {
                 return category;
             }

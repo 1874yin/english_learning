@@ -51,17 +51,7 @@ public class LessonService {
     public LessonPage findPage(int page, int size) {
         int safeSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
         int safePage = Math.max(0, page);
-
-        List<Lesson> lessons = store.findAll();
-        int total = lessons.size();
-        int from = (int) Math.min((long) safePage * safeSize, total);
-        int to = Math.min(from + safeSize, total);
-
-        List<LessonSummary> items = new ArrayList<LessonSummary>(to - from);
-        for (int i = from; i < to; i += 1) {
-            items.add(LessonSummary.from(lessons.get(i)));
-        }
-        return new LessonPage(items, safePage, safeSize, total);
+        return store.findPage(safePage, safeSize);
     }
 
     public Optional<Lesson> findById(String id) {
@@ -186,6 +176,7 @@ public class LessonService {
     }
 
     public Lesson create(LessonInput input, MultipartFile audio, MultipartFile cover) throws IOException {
+        store.checkWritable();
         String title = requireTitle(input.getTitle());
         List<String> sentences = splitTranscript(input.getTranscriptText());
         String wordsText = resolveWordsText(input.getWordsText(), null);
@@ -202,7 +193,6 @@ public class LessonService {
             }
             Lesson lesson = new Lesson();
             lesson.setId(id);
-            lesson.setNumber(store.nextNumber());
             applyMetadata(lesson, input, title);
             lesson.setDuration(storedAudio.getDuration());
             lesson.setAudio(storedAudio.getUrl());
@@ -224,6 +214,7 @@ public class LessonService {
 
     public Lesson update(String id, LessonInput input, MultipartFile audio, MultipartFile cover)
             throws IOException {
+        store.checkWritable();
         Lesson existing = store.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("素材不存在：" + id));
 
@@ -250,6 +241,7 @@ public class LessonService {
             Lesson lesson = new Lesson();
             lesson.setId(existing.getId());
             lesson.setNumber(existing.getNumber());
+            lesson.setPersistenceVersion(existing.getPersistenceVersion());
             applyMetadata(lesson, input, title);
             lesson.setDuration(duration);
             lesson.setAudio(audioUrl);

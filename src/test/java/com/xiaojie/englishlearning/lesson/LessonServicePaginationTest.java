@@ -2,13 +2,13 @@ package com.xiaojie.englishlearning.lesson;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaojie.englishlearning.translation.TranslationService;
 import com.xiaojie.englishlearning.translation.TranslationState;
-import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -22,51 +22,51 @@ class LessonServicePaginationTest {
             mock(TranslationState.class));
 
     @Test
-    void returnsRequestedSliceWithTotalAndPageMetadata() {
-        when(store.findAll()).thenReturn(lessons(5));
+    void returnsRequestedDatabasePageAndMetadata() {
+        LessonPage expected = new LessonPage(List.of(summary("id-2"), summary("id-3")), 1, 2, 5);
+        when(store.findPage(1, 2)).thenReturn(expected);
 
-        LessonPage page = service.findPage(1, 2);
+        LessonPage actual = service.findPage(1, 2);
 
-        assertThat(page.getPage()).isEqualTo(1);
-        assertThat(page.getSize()).isEqualTo(2);
-        assertThat(page.getTotal()).isEqualTo(5);
-        assertThat(page.isHasMore()).isTrue();
-        assertThat(page.getItems()).extracting(LessonSummary::getId)
+        assertThat(actual).isSameAs(expected);
+        assertThat(actual.getPage()).isEqualTo(1);
+        assertThat(actual.getSize()).isEqualTo(2);
+        assertThat(actual.getTotal()).isEqualTo(5);
+        assertThat(actual.isHasMore()).isTrue();
+        assertThat(actual.getItems()).extracting(LessonSummary::getId)
                 .containsExactly("id-2", "id-3");
+        verify(store).findPage(1, 2);
     }
 
     @Test
-    void lastPageStopsPagingAndOutOfRangePageIsEmpty() {
-        when(store.findAll()).thenReturn(lessons(5));
+    void databasePageHandlesLastAndOutOfRangePages() {
+        LessonPage last = new LessonPage(List.of(summary("id-4")), 2, 2, 5);
+        LessonPage beyond = new LessonPage(List.of(), 9, 2, 5);
+        when(store.findPage(2, 2)).thenReturn(last);
+        when(store.findPage(9, 2)).thenReturn(beyond);
 
-        LessonPage last = service.findPage(2, 2);
-        assertThat(last.getItems()).extracting(LessonSummary::getId)
+        assertThat(service.findPage(2, 2).getItems()).extracting(LessonSummary::getId)
                 .containsExactly("id-4");
-        assertThat(last.isHasMore()).isFalse();
-
-        LessonPage beyond = service.findPage(9, 2);
-        assertThat(beyond.getItems()).isEmpty();
-        assertThat(beyond.getTotal()).isEqualTo(5);
-        assertThat(beyond.isHasMore()).isFalse();
+        assertThat(service.findPage(2, 2).isHasMore()).isFalse();
+        assertThat(service.findPage(9, 2).getItems()).isEmpty();
+        assertThat(service.findPage(9, 2).getTotal()).isEqualTo(5);
+        assertThat(service.findPage(9, 2).isHasMore()).isFalse();
     }
 
     @Test
-    void negativePageAndNonPositiveSizeAreClamped() {
-        when(store.findAll()).thenReturn(lessons(3));
+    void clampsPageAndSizeBeforeQueryingDatabase() {
+        LessonPage expected = new LessonPage(List.of(summary("id-0")), 0, 1, 3);
+        when(store.findPage(0, 1)).thenReturn(expected);
 
-        LessonPage page = service.findPage(-4, 0);
+        LessonPage actual = service.findPage(-4, 0);
 
-        assertThat(page.getPage()).isEqualTo(0);
-        assertThat(page.getSize()).isEqualTo(1);
-        assertThat(page.getItems()).hasSize(1);
+        assertThat(actual).isSameAs(expected);
+        verify(store).findPage(0, 1);
     }
 
     @Test
-    void listPayloadCarriesOnlySummaryFields() throws Exception {
-        when(store.findAll()).thenReturn(lessons(1));
-
-        JsonNode json = new ObjectMapper()
-                .valueToTree(service.findPage(0, 10).getItems().get(0));
+    void lessonSummaryJsonContainsOnlyPlaylistFields() throws Exception {
+        JsonNode json = new ObjectMapper().valueToTree(summary("id-0"));
 
         assertThat(json.has("transcript")).isFalse();
         assertThat(json.has("wordsText")).isFalse();
@@ -80,29 +80,8 @@ class LessonServicePaginationTest {
         assertThat(json.get("duration").asDouble()).isEqualTo(12.5);
     }
 
-    private List<Lesson> lessons(int count) {
-        List<Lesson> lessons = new ArrayList<Lesson>();
-        for (int i = 0; i < count; i += 1) {
-            Lesson lesson = new Lesson();
-            lesson.setId("id-" + i);
-            lesson.setNumber(String.format("%02d", i + 1));
-            lesson.setTitle("Title " + i);
-            lesson.setTitleZh("标题 " + i);
-            lesson.setCategory("Daily Life");
-            lesson.setLevel("Beginner");
-            lesson.setDuration(12.5);
-            lesson.setCover("/images/cover-default.svg");
-            lesson.setAudio("/media/audio-" + i + ".mp3");
-            lesson.setSummary("Summary " + i);
-            lesson.setWordsText("word");
-            TranscriptLine line = new TranscriptLine();
-            line.setText("Hello.");
-            line.setStart(0);
-            line.setEnd(1);
-            line.setTranslation("你好。");
-            lesson.getTranscript().add(line);
-            lessons.add(lesson);
-        }
-        return lessons;
+    private LessonSummary summary(String id) {
+        return new LessonSummary(id, "01", "Title 0", "标题 0", "Daily Life", "Beginner", 12.5,
+                "/images/cover-default.svg");
     }
 }

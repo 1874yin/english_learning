@@ -4,12 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaojie.englishlearning.lesson.Lesson;
 import com.xiaojie.englishlearning.lesson.LessonStore;
-import com.xiaojie.englishlearning.storage.StoragePaths;
+import com.xiaojie.englishlearning.persistence.ListeningPersistence;
 import java.io.IOException;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,106 +20,114 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ListeningStore {
-    private final Path directory;
     private final ObjectMapper mapper;
     private final LessonStore lessons;
+    private final ListeningPersistence persistence;
     private final Clock clock;
     private final ZoneId zone;
 
-    public ListeningStore(StoragePaths paths, ObjectMapper mapper, LessonStore lessons, Clock clock,
-            @Value("${app.user.time-zone:Asia/Shanghai}") String zone) throws IOException {
-        this.directory = paths.getRoot().resolve("user-data");
-        Files.createDirectories(directory);
+    public ListeningStore(ObjectMapper mapper, LessonStore lessons, ListeningPersistence persistence,
+            Clock clock, @Value("${app.user.time-zone:Asia/Shanghai}") String zone) {
         this.mapper = mapper;
         this.lessons = lessons;
+        this.persistence = persistence;
         this.clock = clock;
         this.zone = ZoneId.of(zone);
     }
 
-    public synchronized String start(String userId, String lessonId) throws IOException {
-        Lesson lesson = requireLesson(lessonId);
-        ListeningData data = read(userId);
-        while (data.streams.size() >= 32) data.streams.remove(data.streams.keySet().iterator().next());
-        String id = UUID.randomUUID().toString();
-        Instant now = clock.instant();
-        ListeningData.Stream stream = new ListeningData.Stream();
-        stream.lessonId = lessonId;
-        stream.lastReportedAt = now.toString();
-        data.streams.put(id, stream);
-        // Pressing play is enough to appear in the history; listening time is
-        // still only credited from heartbeats.
-        ListeningData.Record record = data.records.computeIfAbsent(lesson.getId(), key -> describe(lesson));
-        record.updatedAt = now.toEpochMilli();
-        record.lastListenedAt = now.toString();
-        save(userId, data);
-        return id;
+    public void checkWritable() {
+        persistence.checkWritable();
     }
 
-    public synchronized void record(String userId, String streamId, int sequence, double seconds, double position) throws IOException {
+    public String start(String userId, String lessonId) throws IOException {
+        persistence.checkWritable();
+        Lesson lesson = requireLesson(lessonId);
+        return persistence.update(userId, data -> {
+            while (data.streams.size() >= 32) data.streams.remove(data.streams.keySet().iterator().next());
+            String id = UUID.randomUUID().toString();
+            Instant now = clock.instant();
+            ListeningData.Stream stream = new ListeningData.Stream();
+            stream.lessonId = lessonId;
+            stream.lastReportedAt = now.toString();
+            data.streams.put(id, stream);
+            // Pressing play is enough to appear in the history; listening time is
+            // still only credited from heartbeats.
+            ListeningData.Record record = data.records.computeIfAbsent(lesson.getId(), key -> describe(lesson));
+            record.updatedAt = now.toEpochMilli();
+            record.lastListenedAt = now.toString();
+            return id;
+        });
+    }
+
+    public void record(String userId, String streamId, int sequence, double seconds, double position) throws IOException {
+        persistence.checkWritable();
         if (sequence < 1 || !Double.isFinite(seconds) || seconds < 0 || !Double.isFinite(position) || position < 0) {
             throw new UserException(HttpStatus.BAD_REQUEST, "收听记录格式不正确。" );
         }
-        ListeningData data = read(userId);
-        ListeningData.Stream stream = data.streams.get(streamId);
-        if (stream == null) throw new UserException(HttpStatus.NOT_FOUND, "收听会话已过期，请重新开始播放。" );
-        if (sequence <= stream.sequence) return;
-        if (seconds < stream.seconds) throw new UserException(HttpStatus.BAD_REQUEST, "收听时长不能倒退。" );
-        Lesson lesson = requireLesson(stream.lessonId);
-        Instant now = clock.instant();
-        Instant last = Instant.parse(stream.lastReportedAt);
-        double available = Math.max(0, Duration.between(last, now).toMillis() / 1000.0);
-        if (data.lastCreditedAt != null) {
-            available = Math.min(available, Math.max(0,
-                    Duration.between(Instant.parse(data.lastCreditedAt), now).toMillis() / 1000.0));
-        }
-        double credited = Math.min(Math.min(seconds - stream.seconds, available), 300);
-        ListeningData.Record record = data.records.computeIfAbsent(lesson.getId(), id -> describe(lesson));
-        record.position = Math.min(position, Math.max(0, lesson.getDuration()));
-        record.updatedAt = now.toEpochMilli();
-        if (credited > 0) {
-            record.listenedSeconds += credited;
-            record.lastListenedAt = now.toString();
-            record.imported = false;
-            addTime(data, now.minusMillis(Math.round(credited * 1000)), now);
-            data.lastCreditedAt = now.toString();
-        }
-        stream.sequence = sequence;
-        stream.seconds = seconds;
-        stream.lastReportedAt = now.toString();
-        save(userId, data);
+        persistence.update(userId, data -> {
+            ListeningData.Stream stream = data.streams.get(streamId);
+            if (stream == null) throw new UserException(HttpStatus.NOT_FOUND, "收听会话已过期，请重新开始播放。" );
+            if (sequence <= stream.sequence) return null;
+            if (seconds < stream.seconds) throw new UserException(HttpStatus.BAD_REQUEST, "收听时长不能倒退。" );
+            Lesson lesson = requireLesson(stream.lessonId);
+            Instant now = clock.instant();
+            Instant last = Instant.parse(stream.lastReportedAt);
+            double available = Math.max(0, Duration.between(last, now).toMillis() / 1000.0);
+            if (data.lastCreditedAt != null) {
+                available = Math.min(available, Math.max(0,
+                        Duration.between(Instant.parse(data.lastCreditedAt), now).toMillis() / 1000.0));
+            }
+            double credited = Math.min(Math.min(seconds - stream.seconds, available), 300);
+            ListeningData.Record record = data.records.computeIfAbsent(lesson.getId(), id -> describe(lesson));
+            record.position = Math.min(position, Math.max(0, lesson.getDuration()));
+            record.updatedAt = now.toEpochMilli();
+            if (credited > 0) {
+                record.listenedSeconds += credited;
+                record.lastListenedAt = now.toString();
+                record.imported = false;
+                addTime(data, now.minusMillis(Math.round(credited * 1000)), now);
+                data.lastCreditedAt = now.toString();
+            }
+            stream.sequence = sequence;
+            stream.seconds = seconds;
+            stream.lastReportedAt = now.toString();
+            return null;
+        });
     }
 
-    public synchronized void importProgress(String userId, List<ImportRecord> records) throws IOException {
+    public void importProgress(String userId, List<ImportRecord> records) throws IOException {
+        persistence.checkWritable();
         if (records == null || records.size() > 1000) {
             throw new UserException(HttpStatus.BAD_REQUEST, "每次最多同步 1000 条本地记录。" );
         }
-        ListeningData data = read(userId);
-        for (ImportRecord input : records) {
-            if (input == null || !Double.isFinite(input.position) || input.position < 0 || input.updatedAt < 0) {
-                throw new UserException(HttpStatus.BAD_REQUEST, "本地记录格式不正确。" );
+        persistence.update(userId, data -> {
+            for (ImportRecord input : records) {
+                if (input == null || !Double.isFinite(input.position) || input.position < 0 || input.updatedAt < 0) {
+                    throw new UserException(HttpStatus.BAD_REQUEST, "本地记录格式不正确。" );
+                }
+                Optional<Lesson> found = lessons.findById(input.lessonId);
+                if (!found.isPresent()) continue;
+                Lesson lesson = found.get();
+                long updatedAt = Math.min(input.updatedAt, clock.millis());
+                ListeningData.Record existing = data.records.get(input.lessonId);
+                if (existing != null && existing.updatedAt >= updatedAt) continue;
+                if (existing == null) {
+                    // A zero-position progress entry with a timestamp means the
+                    // lesson was opened but never played, so it is not history.
+                    // History entries import without a timestamp (updatedAt 0).
+                    if (input.position <= 0 && input.updatedAt > 0) continue;
+                    existing = describe(lesson);
+                    existing.imported = true;
+                    data.records.put(lesson.getId(), existing);
+                }
+                existing.position = Math.min(input.position, Math.max(0, lesson.getDuration()));
+                existing.updatedAt = updatedAt;
             }
-            Optional<Lesson> found = lessons.findById(input.lessonId);
-            if (!found.isPresent()) continue;
-            Lesson lesson = found.get();
-            long updatedAt = Math.min(input.updatedAt, clock.millis());
-            ListeningData.Record existing = data.records.get(input.lessonId);
-            if (existing != null && existing.updatedAt >= updatedAt) continue;
-            if (existing == null) {
-                // A zero-position progress entry with a timestamp means the
-                // lesson was opened but never played, so it is not history.
-                // History entries import without a timestamp (updatedAt 0).
-                if (input.position <= 0 && input.updatedAt > 0) continue;
-                existing = describe(lesson);
-                existing.imported = true;
-                data.records.put(lesson.getId(), existing);
-            }
-            existing.position = Math.min(input.position, Math.max(0, lesson.getDuration()));
-            existing.updatedAt = updatedAt;
-        }
-        save(userId, data);
+            return null;
+        });
     }
 
-    public synchronized Map<String, Object> profile(String userId) throws IOException {
+    public Map<String, Object> profile(String userId) throws IOException {
         ListeningData data = read(userId);
         Map<String, Object> profile = new LinkedHashMap<>();
         Map<String, Object> stats = new LinkedHashMap<>();
@@ -180,21 +184,29 @@ public class ListeningStore {
         return profile;
     }
 
-    public synchronized void favorite(String userId, String lessonId) throws IOException {
+    public void favorite(String userId, String lessonId) throws IOException {
+        persistence.checkWritable();
         Lesson lesson = requireLesson(lessonId);
-        ListeningData data = read(userId);
-        if (data.favorites.putIfAbsent(lesson.getId(), clock.millis()) == null) save(userId, data);
+        persistence.update(userId, data -> {
+            data.favorites.putIfAbsent(lesson.getId(), clock.millis());
+            return null;
+        });
     }
 
-    public synchronized void unfavorite(String userId, String lessonId) throws IOException {
-        ListeningData data = read(userId);
-        if (data.favorites.remove(lessonId) != null) save(userId, data);
+    public void unfavorite(String userId, String lessonId) throws IOException {
+        persistence.checkWritable();
+        persistence.update(userId, data -> {
+            data.favorites.remove(lessonId);
+            return null;
+        });
     }
 
-    public synchronized void saveAnalysis(String userId, JsonNode analysis) throws IOException {
-        ListeningData data = read(userId);
-        data.analysis = analysis;
-        save(userId, data);
+    public void saveAnalysis(String userId, JsonNode analysis) throws IOException {
+        persistence.checkWritable();
+        persistence.update(userId, data -> {
+            data.analysis = analysis;
+            return null;
+        });
     }
 
     private List<Map<String, Object>> favorites(ListeningData data) {
@@ -220,22 +232,8 @@ public class ListeningStore {
         return favorites;
     }
 
-    private ListeningData read(String userId) throws IOException {
-        Path file = directory.resolve(userId + ".json");
-        ListeningData data = Files.exists(file) ? mapper.readValue(file.toFile(), ListeningData.class) : new ListeningData();
-        if (data.favorites == null) data.favorites = new LinkedHashMap<>();
-        return data;
-    }
-
-    private void save(String userId, ListeningData data) throws IOException {
-        Path file = directory.resolve(userId + ".json");
-        Path temporary = directory.resolve(userId + ".json.tmp");
-        mapper.writerWithDefaultPrettyPrinter().writeValue(temporary.toFile(), data);
-        try {
-            Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException ex) {
-            Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
-        }
+    private ListeningData read(String userId) {
+        return persistence.load(userId);
     }
 
     private Lesson requireLesson(String id) {

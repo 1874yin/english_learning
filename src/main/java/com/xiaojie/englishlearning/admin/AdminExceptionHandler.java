@@ -1,5 +1,6 @@
 package com.xiaojie.englishlearning.admin;
 
+import com.xiaojie.englishlearning.lesson.LessonConflictException;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.slf4j.Logger;
@@ -25,6 +26,11 @@ public class AdminExceptionHandler {
     public ResponseEntity<ApiError> notFound(NoSuchElementException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ApiError(ex.getMessage() == null ? "素材不存在。" : ex.getMessage()));
+    }
+
+    @ExceptionHandler(LessonConflictException.class)
+    public ResponseEntity<ApiError> lessonConflict(LessonConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError(ex.getMessage()));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

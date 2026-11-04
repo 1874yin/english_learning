@@ -7,6 +7,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
+import com.xiaojie.englishlearning.lesson.Lesson;
+import com.xiaojie.englishlearning.lesson.LessonStore;
+import com.xiaojie.englishlearning.persistence.mongodb.ListeningMongoRepository;
+import com.xiaojie.englishlearning.testsupport.DatabaseTestContainers;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -22,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -29,6 +34,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -36,9 +42,9 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-@SpringBootTest(properties = {"app.translation.enabled=false", "app.user-analysis.api-key=analysis-test-only", "app.user-analysis.model=analysis-test-model"})
+@SpringBootTest(properties = {"app.translation.enabled=false", "app.user-analysis.api-key=analysis-test-only", "app.user-analysis.model=analysis-test-model", "spring.flyway.enabled=true"})
 @AutoConfigureMockMvc
-class UserAnalysisApiTest {
+class UserAnalysisApiTest extends DatabaseTestContainers {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final AtomicLong TIME = new AtomicLong(Instant.parse("2026-10-20T10:00:00Z").toEpochMilli());
     private static final AtomicReference<String> REQUEST = new AtomicReference<>();
@@ -62,6 +68,31 @@ class UserAnalysisApiTest {
         }
     }
     @Autowired MockMvc mvc;
+    @Autowired ObjectMapper mapper;
+    @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired LessonStore lessonStore;
+    @Autowired ListeningMongoRepository listeningMongoRepository;
+
+    @BeforeEach
+    void resetPersistence() throws Exception {
+        listeningMongoRepository.deleteAll();
+        jdbcTemplate.update("DELETE FROM lessons");
+        jdbcTemplate.update("DELETE FROM users");
+        jdbcTemplate.update("UPDATE lesson_number_sequence SET next_number = 1, next_sort_order = 1 WHERE id = 1");
+        for (int i = 1; i <= 10; i++) {
+            Lesson lesson = new Lesson();
+            lesson.setId("lesson" + i);
+            lesson.setNumber(String.format("%02d", i));
+            lesson.setTitle("Private lesson title " + i);
+            lesson.setCategory("Science");
+            lesson.setLevel("Beginner");
+            lesson.setDuration(100);
+            lesson.setAudio("/media/lesson" + i + ".mp3");
+            lesson.setUpdatedAt("2026-10-20T00:00:00Z");
+            lessonStore.insert(lesson);
+        }
+    }
+
     @AfterAll static void stop() { SERVER.stop(0); }
 
     @Test

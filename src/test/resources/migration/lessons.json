@@ -1,0 +1,23 @@
+[
+  {
+    "id": "lesson-7",
+    "number": "07",
+    "title": "Imported lesson",
+    "titleZh": null,
+    "category": "Science",
+    "level": "Beginner",
+    "duration": 42.5,
+    "audio": "/media/import.mp3",
+    "cover": null,
+    "summary": null,
+    "summaryZh": null,
+    "updatedAt": "2026-11-03T00:00:00Z",
+    "transcript": [
+      { "start": 0.0, "end": 42.5, "text": "Hello", "translation": "你好" }
+    ],
+    "wordsText": null,
+    "keyPhrases": [
+      { "phrase": "hello", "meaning": "你好" }
+    ]
+  }
+]

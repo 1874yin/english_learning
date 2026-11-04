@@ -1,0 +1,8 @@
+[
+  {
+    "id": "import-user",
+    "username": "learner",
+    "passwordHash": "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy",
+    "createdAt": "2026-11-01T00:00:00Z"
+  }
+]

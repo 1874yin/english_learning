@@ -79,6 +79,10 @@ public class CategoryService {
         }
     }
 
+    public void checkWritable() {
+        categoryStore.checkWritable();
+    }
+
     public String add(String name) throws IOException {
         return categoryStore.add(name);
     }

@@ -7,12 +7,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xiaojie.englishlearning.testsupport.DatabaseTestContainers;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.UUID;
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -21,12 +23,13 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-@SpringBootTest(properties = {"app.translation.enabled=false", "app.user-analysis.api-key="})
+@SpringBootTest(properties = {"app.translation.enabled=false", "app.user-analysis.api-key=", "spring.flyway.enabled=true"})
 @AutoConfigureMockMvc
-class UserAuthApiTest {
+class UserAuthApiTest extends DatabaseTestContainers {
     private static final Path ROOT = createRoot();
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
@@ -34,6 +37,12 @@ class UserAuthApiTest {
     }
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
+    @Autowired JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void clearAccounts() {
+        jdbcTemplate.update("DELETE FROM users");
+    }
 
     @Test
     void registrationPersistsOnlyHashedPasswordAndLogsIn() throws Exception {
@@ -53,8 +62,9 @@ class UserAuthApiTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.user.username").value(name));
         mvc.perform(get("/api/user/profile").session(session).header("X-User-Id", "another-account"))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ACCOUNT_CHANGED"));
-        String stored = new String(Files.readAllBytes(ROOT.resolve("users.json")), StandardCharsets.UTF_8);
-        assertThat(stored).contains(name).doesNotContain("correct-password").contains("$2");
+        String storedHash = jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM users WHERE username = ?", String.class, name);
+        assertThat(storedHash).isNotNull().doesNotContain("correct-password").startsWith("$2");
     }
 
     @Test

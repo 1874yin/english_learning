@@ -24,7 +24,11 @@ import org.springframework.test.web.servlet.MockMvc;
  * Guards the cache-busting contract: a redeploy must never leave a browser
  * running the old stylesheet against the new markup.
  */
-@SpringBootTest(properties = "app.translation.enabled=false")
+@SpringBootTest(properties = {
+        "app.translation.enabled=false",
+        "app.persistence.mode=json-read-only",
+        "spring.flyway.enabled=false"
+})
 @AutoConfigureMockMvc
 class StaticAssetCacheTest {
 

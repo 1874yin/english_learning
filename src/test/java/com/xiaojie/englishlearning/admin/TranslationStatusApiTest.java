@@ -18,7 +18,11 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest(properties = "app.translation.enabled=false")
+@SpringBootTest(properties = {
+        "app.translation.enabled=false",
+        "app.persistence.mode=json-read-only",
+        "spring.flyway.enabled=false"
+})
 @AutoConfigureMockMvc
 class TranslationStatusApiTest {
 

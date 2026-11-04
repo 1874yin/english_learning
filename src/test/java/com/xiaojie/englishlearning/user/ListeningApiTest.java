@@ -6,6 +6,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xiaojie.englishlearning.lesson.Lesson;
+import com.xiaojie.englishlearning.lesson.LessonStore;
+import com.xiaojie.englishlearning.persistence.ListeningPersistence;
+import com.xiaojie.englishlearning.persistence.mongodb.ListeningMongoRepository;
+import com.xiaojie.englishlearning.testsupport.DatabaseTestContainers;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -14,6 +19,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -21,6 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -28,9 +35,9 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-@SpringBootTest(properties = {"app.translation.enabled=false", "app.translation.deepseek-api-key=translation-only-test-key", "app.user-analysis.api-key=", "app.user.time-zone=Asia/Shanghai"})
+@SpringBootTest(properties = {"app.translation.enabled=false", "app.translation.deepseek-api-key=translation-only-test-key", "app.user-analysis.api-key=", "app.user.time-zone=Asia/Shanghai", "spring.flyway.enabled=true"})
 @AutoConfigureMockMvc
-class ListeningApiTest {
+class ListeningApiTest extends DatabaseTestContainers {
     private static final Path ROOT = createRoot();
     private static final MutableClock TIME = new MutableClock();
     @DynamicPropertySource
@@ -41,6 +48,30 @@ class ListeningApiTest {
     }
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
+    @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired LessonStore lessonStore;
+    @Autowired ListeningPersistence listening;
+    @Autowired ListeningMongoRepository listeningMongoRepository;
+
+    @BeforeEach
+    void resetPersistence() throws Exception {
+        listeningMongoRepository.deleteAll();
+        jdbcTemplate.update("DELETE FROM lessons");
+        jdbcTemplate.update("DELETE FROM users");
+        jdbcTemplate.update("UPDATE lesson_number_sequence SET next_number = 1, next_sort_order = 1 WHERE id = 1");
+        for (int i = 1; i <= 12; i++) {
+            Lesson lesson = new Lesson();
+            lesson.setId("lesson" + i);
+            lesson.setNumber(String.format("%02d", i));
+            lesson.setTitle("Lesson " + i);
+            lesson.setCategory(i % 2 == 0 ? "Culture" : "Science");
+            lesson.setLevel("Beginner");
+            lesson.setDuration(100);
+            lesson.setAudio("/media/lesson" + i + ".mp3");
+            lesson.setUpdatedAt("2026-10-20T00:00:00Z");
+            lessonStore.insert(lesson);
+        }
+    }
 
     @Test
     void realListeningNotPositionControlsTheEightyPercentThreshold() throws Exception {
@@ -189,8 +220,7 @@ class ListeningApiTest {
         assertThat(profile(a).path("favorites")).hasSize(1);
         unfavorite(a, "lesson1");
         assertThat(profile(a).path("favorites")).hasSize(1);
-        JsonNode disk = mapper.readTree(ROOT.resolve("user-data").resolve(a.id + ".json").toFile());
-        assertThat(disk.path("favorites").path("lesson2").asLong()).isEqualTo(TIME.millis());
+        assertThat(listening.load(a.id).favorites.get("lesson2")).isEqualTo(TIME.millis());
     }
 
     @Test
@@ -215,9 +245,12 @@ class ListeningApiTest {
         TIME.advance(80); heartbeat(c, stream, 1, 80, 80);
         JsonNode first = profile(c);
         assertThat(first.path("records").get(0).path("title").asText()).isEqualTo("Lesson 3");
-        JsonNode disk = mapper.readTree(ROOT.resolve("user-data").resolve(c.id + ".json").toFile());
-        assertThat(disk.path("records").path("lesson3").path("listenedSeconds").asDouble()).isEqualTo(80);
-        assertThat(profile(c).path("stats").path("effectiveEpisodes").asInt()).isEqualTo(1);
+        assertThat(listening.load(c.id).records.get("lesson3").listenedSeconds).isEqualTo(80);
+        jdbcTemplate.update("DELETE FROM lessons WHERE id = ?", "lesson3");
+        JsonNode afterDeletion = profile(c);
+        assertThat(afterDeletion.path("stats").path("effectiveEpisodes").asInt()).isEqualTo(1);
+        assertThat(afterDeletion.path("records").get(0).path("title").asText()).isEqualTo("Lesson 3");
+        assertThat(afterDeletion.path("records").get(0).path("available").asBoolean()).isFalse();
     }
 
     @Test

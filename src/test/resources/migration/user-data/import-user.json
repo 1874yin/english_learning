@@ -1,0 +1,30 @@
+{
+  "records": {
+    "lesson-7": {
+      "lessonId": "lesson-7",
+      "title": "Imported lesson",
+      "titleZh": null,
+      "category": "Science",
+      "duration": 42.5,
+      "position": 20.0,
+      "listenedSeconds": 0.0,
+      "updatedAt": 1762000000000,
+      "lastListenedAt": null,
+      "imported": true
+    }
+  },
+  "streams": {},
+  "daily": {
+    "2026-11-03": 12.5
+  },
+  "hours": {
+    "9": 12.5
+  },
+  "favorites": {
+    "lesson-7": 1762000000000
+  },
+  "lastCreditedAt": null,
+  "analysis": {
+    "title": "Existing profile"
+  }
+}

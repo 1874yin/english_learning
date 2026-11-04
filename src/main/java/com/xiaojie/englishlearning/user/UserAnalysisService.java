@@ -49,6 +49,7 @@ public class UserAnalysisService {
     }
 
     public JsonNode generate(String userId) throws IOException {
+        listening.checkWritable();
         if (!inFlight.add(userId)) throw new UserException(HttpStatus.TOO_MANY_REQUESTS, "分析正在生成，请稍候。" );
         try {
             Map<String, Object> profile = listening.profile(userId);

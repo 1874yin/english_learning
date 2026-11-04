@@ -1,5 +1,6 @@
 package com.xiaojie.englishlearning.lesson;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +21,8 @@ public class Lesson {
     private List<TranscriptLine> transcript = new ArrayList<TranscriptLine>();
     private String wordsText;
     private List<KeyPhrase> keyPhrases = new ArrayList<KeyPhrase>();
+    @JsonIgnore
+    private Long persistenceVersion;
 
     public String getId() {
         return id;
@@ -139,5 +142,15 @@ public class Lesson {
 
     public void setKeyPhrases(List<KeyPhrase> keyPhrases) {
         this.keyPhrases = keyPhrases;
+    }
+
+    @JsonIgnore
+    public Long getPersistenceVersion() {
+        return persistenceVersion;
+    }
+
+    @JsonIgnore
+    public void setPersistenceVersion(Long persistenceVersion) {
+        this.persistenceVersion = persistenceVersion;
     }
 }

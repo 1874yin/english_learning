@@ -15,7 +15,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.stream.Stream;
+import com.xiaojie.englishlearning.testsupport.DatabaseTestContainers;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -26,12 +28,13 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-@SpringBootTest(properties = "app.translation.enabled=false")
+@SpringBootTest(properties = {"app.translation.enabled=false", "spring.flyway.enabled=true"})
 @AutoConfigureMockMvc
-class CategoryApiTest {
+class CategoryApiTest extends DatabaseTestContainers {
 
     private static final Path STORAGE_ROOT = createStorageRoot();
 
@@ -43,6 +46,16 @@ class CategoryApiTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void clearDatabase() {
+        jdbcTemplate.update("DELETE FROM lessons");
+        jdbcTemplate.update("DELETE FROM categories");
+        jdbcTemplate.update("UPDATE lesson_number_sequence SET next_number = 1, next_sort_order = 1 WHERE id = 1");
+    }
 
     @AfterAll
     static void cleanStorage() throws IOException {

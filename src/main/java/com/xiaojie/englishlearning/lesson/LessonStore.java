@@ -6,6 +6,7 @@ import com.mpatric.mp3agic.InvalidDataException;
 import com.mpatric.mp3agic.Mp3File;
 import com.mpatric.mp3agic.UnsupportedTagException;
 import com.xiaojie.englishlearning.admin.AdminValidationException;
+import com.xiaojie.englishlearning.persistence.LessonPersistence;
 import com.xiaojie.englishlearning.storage.StoragePaths;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,15 +46,25 @@ public class LessonStore {
 
     private final StoragePaths paths;
     private final ObjectMapper objectMapper;
+    private final LessonPersistence persistence;
     private final List<Lesson> lessons = new ArrayList<Lesson>();
 
     public LessonStore(StoragePaths paths, ObjectMapper objectMapper) {
+        this(paths, objectMapper, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public LessonStore(StoragePaths paths, ObjectMapper objectMapper, LessonPersistence persistence) {
         this.paths = paths;
         this.objectMapper = objectMapper;
+        this.persistence = persistence;
     }
 
     @PostConstruct
     public synchronized void load() {
+        if (persistence != null) {
+            return;
+        }
         lessons.clear();
         Path file = paths.getLessonsFile();
         if (!Files.exists(file)) {
@@ -73,10 +84,16 @@ public class LessonStore {
     }
 
     public synchronized List<Lesson> findAll() {
+        if (persistence != null) {
+            return persistence.findAll();
+        }
         return new ArrayList<Lesson>(lessons);
     }
 
     public synchronized Optional<Lesson> findById(String id) {
+        if (persistence != null) {
+            return persistence.findById(id);
+        }
         for (Lesson lesson : lessons) {
             if (lesson.getId().equals(id)) {
                 return Optional.of(lesson);
@@ -85,7 +102,14 @@ public class LessonStore {
         return Optional.empty();
     }
 
+    public void checkWritable() {
+        if (persistence != null) persistence.checkWritable();
+    }
+
     public synchronized String nextNumber() {
+        if (persistence != null) {
+            return persistence.nextNumber();
+        }
         int max = 0;
         for (Lesson lesson : lessons) {
             try {
@@ -98,6 +122,13 @@ public class LessonStore {
     }
 
     public synchronized Lesson insert(Lesson lesson) throws IOException {
+        checkWritable();
+        if (persistence != null) {
+            return persistence.insert(lesson);
+        }
+        if (lesson.getNumber() == null) {
+            lesson.setNumber(nextNumber());
+        }
         lessons.add(lesson);
         try {
             persist();
@@ -109,6 +140,10 @@ public class LessonStore {
     }
 
     public synchronized Lesson replace(Lesson lesson) throws IOException {
+        checkWritable();
+        if (persistence != null) {
+            return persistence.replace(lesson);
+        }
         for (int i = 0; i < lessons.size(); i += 1) {
             if (lessons.get(i).getId().equals(lesson.getId())) {
                 Lesson previous = lessons.get(i);
@@ -132,6 +167,10 @@ public class LessonStore {
      */
     public synchronized boolean updateTranslations(String id, List<String> expectedTexts,
             List<String> translations) throws IOException {
+        checkWritable();
+        if (persistence != null) {
+            return persistence.updateTranslations(id, expectedTexts, translations);
+        }
         Optional<Lesson> found = findById(id);
         if (!found.isPresent()) {
             return false;
@@ -174,6 +213,10 @@ public class LessonStore {
      * Returns the number of subtitle lines that were cleared.
      */
     public synchronized int clearAllTranslations() throws IOException {
+        checkWritable();
+        if (persistence != null) {
+            return persistence.clearAllTranslations();
+        }
         List<TranscriptLine> changedLines = new ArrayList<TranscriptLine>();
         List<String> previous = new ArrayList<String>();
         for (Lesson lesson : lessons) {
@@ -201,6 +244,22 @@ public class LessonStore {
             throw ex;
         }
         return changedLines.size();
+    }
+
+    public synchronized LessonPage findPage(int page, int size) {
+        if (persistence != null) {
+            return persistence.findPage(page, size);
+        }
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int safePage = Math.max(0, page);
+        int total = lessons.size();
+        int from = (int) Math.min((long) safePage * safeSize, total);
+        int to = Math.min(from + safeSize, total);
+        List<LessonSummary> items = new ArrayList<>(to - from);
+        for (int i = from; i < to; i++) {
+            items.add(LessonSummary.from(lessons.get(i)));
+        }
+        return new LessonPage(items, safePage, safeSize, total);
     }
 
     public synchronized StoredAudio storeAudio(MultipartFile audio, String lessonId) throws IOException {

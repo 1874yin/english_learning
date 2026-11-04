@@ -33,6 +33,7 @@ public class AdminCategoryController {
 
     @DeleteMapping
     public ResponseEntity<ApiError> remove(@RequestParam("name") String name) throws IOException {
+        categoryService.checkWritable();
         if (categoryService.isUsed(name)) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(new ApiError("这个分类正在被素材使用，删除前请先修改对应素材。"));

@@ -6,12 +6,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/user")
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class UserAuthController {
     private final UserStore users;
     private final java.time.Clock clock;
